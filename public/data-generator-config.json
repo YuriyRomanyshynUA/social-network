@@ -1,0 +1,7 @@
+{
+    "input_file": "{abs_path}/social-network/res/data.json",
+    "output_file": "{abs_path}/social-network/res/data-generator-output.json",
+    "users_count": 20,
+    "max_posts_per_user": 10,
+    "max_likes_per_user": 25
+}

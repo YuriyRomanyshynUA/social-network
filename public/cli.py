@@ -7,6 +7,8 @@ from social_network.domain_models import Base
 from social_network.settings import DATABASE
 from social_network.settings import Config
 
+from data_generator import DataGenerator
+
 
 @click.group()
 def cli(): pass
@@ -25,6 +27,14 @@ def init_database():
     engine = create_engine(url)
     Base.metadata.create_all(engine)
 
+
+@cli.command()
+@click.option('--config-path')
+def generate_database(config_path):
+    with open(config_path, "r") as f:
+        config = json.load(f)
+    dg = DataGenerator(config)
+    dg.run()
 
 
 if __name__ == "__main__":

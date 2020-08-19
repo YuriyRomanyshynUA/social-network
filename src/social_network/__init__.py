@@ -38,9 +38,11 @@ def setup_logging(app):
 def register_blueprints(app):
     from social_network.blueprints import auth_blueprint
     from social_network.blueprints import posts_blueprint
+    from social_network.blueprints import users_blueprint
 
     app.register_blueprint(auth_blueprint)
     app.register_blueprint(posts_blueprint)
+    app.register_blueprint(users_blueprint)
 
 
 def register_error_handlers(app):

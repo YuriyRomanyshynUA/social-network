@@ -1,12 +1,14 @@
 from datetime import datetime
 from flask import request
 from flask import Blueprint
+from sqlalchemy import literal
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 #
 from social_network import db
 from social_network.errors import ApplicationError
 from social_network.security import jwt_auth
+from social_network.other import record_activity
 from social_network.domain_models import Post
 from social_network.domain_models import Like
 from social_network.domain_models import UserProfile
@@ -22,6 +24,7 @@ api = Blueprint("posts", __name__)
 
 @api.route("/api/posts/create", methods=["POST"])
 @jwt_auth()
+@record_activity()
 def create_post(*args, **kwargs):
     now = datetime.now()
 
@@ -46,15 +49,17 @@ def create_post(*args, **kwargs):
 
 @api.route("/api/post/<int:post_id>", methods=["GET"])
 @jwt_auth()
+@record_activity()
 def get_post(post_id, *args, **kwargs):
 
     post, likes_count = (
-        db.session.query(Post, func.count(Like.id))
+        db.session.query(Post, func.count(Like.id).label("likes_count"))
+        .options(joinedload(Post.user_profile))
         .outerjoin(Like)
-        .filter(Post.id == 2)
+        .filter(Post.id == post_id)
         .filter(Post.deleted_at.is_(None))
         .filter(Like.deleted_at.is_(None))
-        .options(joinedload(Post.user_profile))
+        .group_by(Post.id)
         .first()
     )
 
@@ -86,6 +91,7 @@ def get_post(post_id, *args, **kwargs):
 
 @api.route("/api/posts/user/<int:user_id>", methods=["GET"])
 @jwt_auth()
+@record_activity()
 def get_user_posts(user_id, *args, **kwargs):
     lookup_payload = UserPostsLookupPayload(
         user_id=user_id,
@@ -117,6 +123,7 @@ def get_user_posts(user_id, *args, **kwargs):
 
     posts = (
         db.session.query(Post, func.count(Like.id))
+        .options(joinedload(Post.user_profile))
         .outerjoin(Like)
         .filter(Post.user_id == lookup_payload.user_id)
         .filter(Post.deleted_at.is_(None))
@@ -127,13 +134,27 @@ def get_user_posts(user_id, *args, **kwargs):
         .all()
     )
 
-    data = [{
+    data_posts = [{
         "id": post.id,
         "title": post.title,
         "content": post.content,
         "published_at": int(post.created_at.timestamp() * 1000),
         "likes_count": likes_count
     } for (post, likes_count) in posts]
+
+    user_profile = posts[0][0].user_profile
+
+    data = {
+        "posts": data_posts,
+        "user": {
+            "id": user_profile.user_id,
+            "full_name": user_profile.full_name,
+            "city": user_profile.city,
+            "country": user_profile.country,
+            "sex": user_profile.sex,
+            "birthday": user_profile.birthday
+        }
+    }
 
     return {
         "status": "ok",
@@ -148,6 +169,7 @@ def get_user_posts(user_id, *args, **kwargs):
 
 @api.route("/api/posts/lookup", methods=["GET"])
 @jwt_auth()
+@record_activity()
 def posts_lookup(*args, **kwargs):
 
     lookup_payload = PostLookupPayload(**request.args)
@@ -199,7 +221,7 @@ def posts_lookup(*args, **kwargs):
 
     posts = (
         db.session.query(Post, func.count(Like.id))
-        .join(UserProfile)
+        .options(joinedload(Post.user_profile))
         .outerjoin(Like)
         .filter(*criteria)
         .group_by(Post.id)
@@ -208,23 +230,31 @@ def posts_lookup(*args, **kwargs):
         .all()
     )
 
-    data = [{
-        "user": {
-            "id": post.user_profile.user_id,
-            "full_name": post.user_profile.full_name,
-            "city": post.user_profile.city,
-            "country": post.user_profile.country,
-            "sex": post.user_profile.sex,
-            "birthday": post.user_profile.birthday
-        },
-        "post": {
+    users_id_set = set()
+    data_users = []
+    data_posts = []
+
+    for (post, likes_count) in posts:
+        data_posts.append({
             "id": post.id,
+            "user_id": post.user_profile.user_id,
             "title": post.title,
             "content": post.content,
             "published_at": int(post.created_at.timestamp() * 1000),
             "likes_count": likes_count
-        }
-    } for (post, likes_count) in posts]
+        })
+        if post.user_profile.user_id not in users_id_set:
+            users_id_set.add(post.user_profile.user_id)
+            data_users.append({
+                "id": post.user_profile.user_id,
+                "full_name": post.user_profile.full_name,
+                "city": post.user_profile.city,
+                "country": post.user_profile.country,
+                "sex": post.user_profile.sex,
+                "birthday": post.user_profile.birthday
+            })
+
+    data = {"users": data_users, "posts": data_posts}
 
     return {
         "status": "ok",
@@ -238,6 +268,7 @@ def posts_lookup(*args, **kwargs):
 
 @api.route("/api/post/like", methods=["POST"])
 @jwt_auth()
+@record_activity()
 def like_post(*args, **kwargs):
     now = datetime.now()
     user = kwargs["user"]  # from jwt_auth decorator
@@ -267,7 +298,7 @@ def like_post(*args, **kwargs):
 
     # === did user like it prev ===
 
-    user_already_liked = (
+    query = (
         db.session.query(Like)
         .filter(Like.post_id == post.id)
         .filter(Like.user_id == user.id)
@@ -275,8 +306,14 @@ def like_post(*args, **kwargs):
         .exists()
     )
 
-    if user_already_liked:
-        return {"status": "ok", "value": 0}
+    user_already_liked = (
+        db.session.query(literal(True))
+        .filter(query)
+        .scalar()
+    )
+
+    if user_already_liked is True:
+        return {"status": "ok", "value": likes_count}
 
     # === add like to post ===
 
@@ -297,6 +334,7 @@ def like_post(*args, **kwargs):
 
 @api.route("/api/post/unlike", methods=["POST"])
 @jwt_auth()
+@record_activity()
 def unlike_post(*args, **kwargs):
     now = datetime.now()
     user = kwargs["user"]  # from jwt_auth decorator

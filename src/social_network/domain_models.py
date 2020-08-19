@@ -38,6 +38,7 @@ class User(Base):
     deleted_at = Column(DateTime)
     
     profile = relationship("UserProfile", uselist=False, back_populates="user_cred")
+    activity = relationship("ActivityRecord", back_populates="user")
 
 
 class UserProfile(Base):
@@ -104,3 +105,21 @@ class RefreshToken(Base):
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
     deleted_at = Column(DateTime)
+
+
+class ActivityRecord(Base):
+    __tablename__ = "activity_records"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    name = Column(String(250), nullable=False)
+    message = Column(String(250), nullable=True)
+    os = Column(String(250), nullable=True)
+    device = Column(String(250), nullable=True)
+    browser = Column(String(250), nullable=True)
+    ip_address = Column(String(250), nullable=True)
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
+    deleted_at = Column(DateTime)
+
+    user = relationship("User", back_populates="activity")

@@ -13,6 +13,7 @@ from social_network.security import generate_jwt
 from social_network.security import parse_user_agent
 from social_network.security import generate_refresh_token
 from social_network.security import jwt_auth
+from social_network.other import record_activity
 from social_network.errors import ApplicationError
 from social_network.domain_models import User
 from social_network.domain_models import UserProfile
@@ -27,6 +28,7 @@ api = Blueprint("auth", __name__)
 
 
 @api.route("/api/email-lookup", methods=["GET"])
+@record_activity()
 def email_lookup(*args, **kwargs):
     try:
         user_email = validate_email(request.args["email"]).email
@@ -48,6 +50,7 @@ def email_lookup(*args, **kwargs):
 
 
 @api.route("/api/signup", methods=["POST"])
+@record_activity()
 def signup(*args, **kwargs):
     now = datetime.now()
     user_payload = UserSignupPayload(**request.get_json())
@@ -91,10 +94,11 @@ def signup(*args, **kwargs):
     db.session.add(new_user)
     db.session.commit()
 
-    return {"status": "ok"}, 200
+    return {"status": "ok", "value": new_user.id}
 
 
 @api.route("/api/signin", methods=["POST"])
+@record_activity()
 def signin(*args, **kwargs):
     ua_header = request.headers.get("User-Agent", "")
     user_agent = parse_user_agent(ua_header)
@@ -167,6 +171,7 @@ def signin(*args, **kwargs):
 
 @api.route("/api/refresh-token", methods=["POST"])
 @jwt_auth(can_be_expired=True)
+@record_activity()
 def refresh_jwt_token(*args, **kwargs):
     now = datetime.now()
 

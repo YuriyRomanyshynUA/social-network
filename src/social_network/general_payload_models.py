@@ -5,7 +5,6 @@ from social_network.settings import PAGINATION_POLICY
 
 
 
-
 class PaginationPayload(BaseModel):
     limit: int = PAGINATION_POLICY["LIMIT"]
     page: int = 1
