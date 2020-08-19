@@ -1,0 +1,60 @@
+{
+    "version": 1,
+    "formatters": {
+	"defaultFormatter": {
+	    "format": "[%(asctime)s].[%(name)s].[%(levelname)s] %(message)s"
+	},
+	"werkzeugFormatter": {
+	    "format": "[%(name)s].[%(levelname)s] %(message)s"
+	}
+    },
+    "handlers": {
+	"appFileHandler": {
+	    "class": "logging.handlers.RotatingFileHandler",
+	    "level": "DEBUG",
+	    "formatter": "defaultFormatter",
+	    "filename": "/home/yura/Projects/social-network/res/logs",
+	    "maxBytes": 1000000,
+            "backupCount": 4
+	},
+	"appConsoleHandler": {
+	    "class": "logging.StreamHandler",
+	    "formatter": "defaultFormatter",
+	    "level": "DEBUG",
+	    "stream": "ext://sys.stdout"
+	},
+	"werkzeugConsoleHandler": {
+	    "class": "logging.StreamHandler",
+	    "formatter": "werkzeugFormatter",
+	    "level": "DEBUG",
+	    "stream": "ext://sys.stdout"
+	}
+    },
+    "loggers": {
+	"": {
+	    "level": "INFO",
+	    "handlers": ["appFileHandler"]
+	},
+	"social_network": {
+	    "level": "INFO",
+	    "handlers": ["appConsoleHandler"],
+	    "propagate": true
+	},
+	"werkzeug": {
+	    "level": "INFO",
+	    "handlers": ["werkzeugConsoleHandler"],
+	    "propagate": true
+	},
+	"sqlalchemy": {
+	    "level": "INFO",
+	    "handlers": ["appConsoleHandler", "appFileHandler"],
+	    "propagate": true
+	},
+	"sqlalchemy.engine": {
+	    "level": "INFO"
+	},
+	"sqlalchemy.orm": {
+	    "level": "INFO"
+	}
+    }
+}
