@@ -1,0 +1,150 @@
+
+Встановлення та запуск.
+
+увага! перед тим як приступити до процесу встановлення переконайтеся
+що у вас в системі присутні python >= 3.6, та mysql >= 5.6
+
+1. завантажте проект на власний комп'ютер виконавши команду:
+
+git clone https://github.com/YuriyRomanyshynUA/social-network.git;s
+
+2. створіть та активуйте python virtualenv:
+
+cd social-network/;
+python3 -m venv .social-network-venv;
+source .social-network-venv/bin/activate;
+
+3. встановіть необхідні залежності:
+
+pip install -r requirements.txt;
+pip install -r requirements-dev.txt;
+pip install -e .;  # також необхідно добавити сам проект до site-packages/ віртуального середовища (команду необхідно виконати в корні проекту)
+
+4. переіменуйте файл 'social-network/src/social-network/settings-template.py' в
+'social-network/src/social-network/settings.py' та змініть наступні атрибути в ньому:
+
+DATABASE.HOST = ""
+DATABASE.USER = ""
+DATABASE.PASSWORD = ""
+DATABASE.NAME = ""
+
+JWT_TOKEN_POLICY.SECRET = ""
+
+CONFIG.LOGGING_SETTINGS = "{abs_path_to}/social-network/src/social-network/logging.json"
+
+5. відкрийте файл 'social-network/src/social-network/logging.json' та змініть наступні атрибути:
+
+handlers.appFileHandler.filename = "{abs_path_to}/social-network/res/log"
+
+6. тепер ми можемо ініціалізувати базу даних, для цього виконайте наступні команди:
+
+cd social-network/public/;
+python cli.py init-database;
+
+7. тепер ми можемо запустити проект, для цього виконайте наступні команди:
+
+cd social-network/src/;
+python application;
+
+8. поки що база даних проекту пуста, і тому процес взаємодій із ним не цікавий.
+Давайте заповнимо її даними. Спочатку необхідно внести деякі зміни в файл
+'social-network/public/data-generator-config.json':
+
+input_file: "{abs_path_to}/social-network/res/data.json",
+output_file: "{abs_path_to}/social-network/res/data-generator-output.json",
+users_count: 40, # бажана к-сть користувачів
+max_posts_per_user: 20, # бажана максимальна к-сть постів
+max_likes_per_user: 25  # бажана максимальна к-сть like-ів згенерованих кожним користувачем
+
+тепер виконаємо команди:
+
+cd social-network/public/;
+python cli.py generate-database --config-path ./data-generator-config.json;
+
+
+PROJECT ROUTES.
+
+
++ GET /api/email-lookup?email=<str>
+
+
++ POST /api/signup
+json-payload:
+{
+    email: EmailStr
+    password: str
+    first_name: str
+    last_name: str
+    sex: Union["MALE"|"FEMALE"]
+    country: Union[str, None]
+    city: Union[str, None]
+    birthday: Union[date, None]
+    phone: Union[str, None]
+}
+
+
++ POST /api/signin
+json-payload:
+{
+    email: EmailStr
+    password: str
+}
+
+
++ POST /api/refresh-token
+headers:
+- Authorization: Bearer <jwt-token>
+json-payload:
+{
+   refresh_token: SecretStr
+}
+
+
++ POST /api/posts/create
+headers:
+- Authorization: Bearer <jwt-token>
+json-payload:
+{
+   title: str
+   content: str
+}
+
+
++ GET /api/post/<int:post_id>
+headers:
+- Authorization: Bearer <jwt-token>
+
+
++ GET /api/posts/user/<int:user_id>?page=<int>&limit=<int>
+headers:
+- Authorization: Bearer <jwt-token>
+
+
++ GET /api/posts/lookup?user_full_name=<str>&title=<str>&content=<str>&page=<int>&limit=<int>
+headers:
+- Authorization: Bearer <jwt-token>
+
+
++ POST /api/post/like?post_id=<int>
+headers:
+- Authorization: Bearer <jwt-token>
+
+
++ POST /api/post/unlike?post_id=<int>
+headers:
+- Authorization: Bearer <jwt-token>
+
+
++ GET /api/user/<int:user_id>
+headers:
+- Authorization: Bearer <jwt-token>
+
+
++ GET /api/users/lookup?full_name=<str>&country=<str>&city=<str>&page=<int>&limit=<int>
+headers:
+- Authorization: Bearer <jwt-token>
+
+
++ GET /api/analytics/likes-aggregation?agg_period=[by_year|by_month|by_day]&date_from=<date>&date_to=<date>
+headers:
+- Authorization: Bearer <jwt-token>
